@@ -4,38 +4,46 @@ from PSETicker import PSE_Ticker
 
 def main():
     url = "https://phisix-api3.appspot.com/"
+
     try:
         print(f"\n**Fetching stock updates from {url}")
         pse_ticker.fetch_stocks_json()
-        print("\nDone!\n")
 
         pse_ticker.run_ticker()
 
     except KeyboardInterrupt:
         print(" OPTION ".center(50, "="))
         print("")
-        print(" 1 - Add/Update Watchlist")
-        print(" 2 - All Stocks")
-        print(" 3 - Create archive\n")
+        print(" w - Add/Update Watchlist")
+        print(" a - All Stocks")
+        print(" c - Create archive")
+        print(" q - Quick Watch\n")
         print(" ** Any Key to Cancel and Continue **\n")
 
-        option = input("Your input here: ")
-        if option.strip() == "1":                                   # create a watchlist of stocks
+        option = input("Your input here: ").strip().lower()
+
+        # create a watchlist of stocks
+        if option == "w":
             watch_list = input(
                 "Input the stock codes here (comma separated): ")
-            if watch_list:
-                pse_ticker.create_watch_list(watch_list)
-                pse_ticker.is_watchlist = True
-        elif option.strip() == "2":                                 # show banner of all stocks
+            pse_ticker.create_watch_list(watch_list)
+        # show banner of all stocks
+        elif option == "a":
             pse_ticker.is_watchlist = False
-
-        elif option.strip() == "3":                                 # create archive of json file
+            pse_ticker.is_quick_watch = False
+        # create archive of json file
+        elif option == "c":
             archive = pse_ticker.create_archive(forced=True)
             if archive:
                 print("\nArchive created: ", archive)
                 time.sleep(2)
+        # create a temporary watchlist
+        elif option == "q":
+            quick_watch_list = input(
+                "Input the stock codes here (comma separated): ")
+            pse_ticker.create_watch_list(quick_watch_list, is_quick_watch=True)
 
-    main()
+        main()
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ class PSE_Ticker:
         self.as_of = ""
         self.watch_list = []
         self.is_watchlist = False
+        self.is_quick_watch = False
 
     def get_as_of_date(self):
         return self.as_of[:10] if self.as_of else None
@@ -72,7 +73,8 @@ class PSE_Ticker:
         except Exception:
             print("\n**Update failed, we'll try again after a moment.\n")
 
-        # if not the same date/time stamp save the new data to json file
+        # if date/time stamp does not match it means we have a new data from API,
+        #  save the new data to json file
         if response_as_of and self.as_of != response_as_of:
             self.as_of = response_as_of
 
@@ -83,46 +85,55 @@ class PSE_Ticker:
             # create archive of json data as file
             self.create_archive()
 
-        if os.path.isfile(JSON_FILENAME):
-            # read the created json file
-            with open(JSON_FILENAME, "r") as file_read:
-                data = json.load(file_read)
-
-                if self.is_watchlist:
-                    # append only stocks that are on the watch_list
-                    self.stocks_list = [stock for stock in data["stock"]
-                                        if stock["symbol"].strip().upper() in self.watch_list]
-                else:
-                    # append ALL stocks data to stocks_list
+            if os.path.isfile(JSON_FILENAME):
+                # read the created json file
+                with open(JSON_FILENAME, "r") as file_read:
+                    data = json.load(file_read)
                     self.stocks_list = [stock for stock in data["stock"]]
 
-            if len(self.stocks_list) < 1:
-                print("\n**No list of stock codes to show\n")
+        if len(self.stocks_list) < 1:
+            print("\n**No list of stock codes to show\n")
 
+        time.sleep(3)
         return self.stocks_list
 
-    def create_watch_list(self, code_csv):
-        if code_csv:
-            new_list = code_csv.upper().replace(" ", "")  # remove in-between spaces
+    def create_watch_list(self, code_csv: str, is_quick_watch: bool = False):
+        temp_list = ""
 
-            temp_list = ""
-            if os.path.isfile("watchlist.tmp"):
-                with open("watchlist.tmp", "r") as fr:
-                    temp_list = fr.read().strip().upper().replace(
-                        " ", "")  # remove in-between spaces
+        if is_quick_watch and len(code_csv.strip()) == 0:
+            # return immediately if no stock code(s) was given and,
+            # if quick watch mode, we don't want to alter contents of temp file.
+            return self.watch_list
 
-            with open("watchlist.tmp", "w") as fw:
-                if len(temp_list) > 0:
-                    code_csv = "{},{}".format(temp_list, new_list)
-                    print(code_csv)
-                fw.write(code_csv)
+        if len(code_csv.strip()) > 0:
+            code_csv = code_csv.upper().replace(" ", "")  # remove in-between spaces
+            if is_quick_watch:
+                self.is_quick_watch = True
+                self.watch_list = code_csv.split(",")
+                # return immediately, no need to write it on temp file
+                return self.watch_list
 
-            self.watch_list = code_csv.split(",")
-            print(self.watch_list)
-            time.sleep(5)
+        if os.path.isfile("watchlist.tmp") and not is_quick_watch:
+            with open("watchlist.tmp", "r") as fr:
+                temp_list = fr.read().strip().upper().replace(
+                    " ", "")  # remove in-between spaces
+
+        with open("watchlist.tmp", "w") as fw:
+            if temp_list and code_csv:
+                # append user inputed code(s) to temp_list
+                temp_list = "{},{}".format(temp_list, code_csv)
+            elif code_csv:
+                temp_list = code_csv
+
+            # proceed if there is something to write
+            if temp_list:
+                fw.write(temp_list)
+                self.is_watchlist = True
+
+        self.watch_list = temp_list.split(",")
         return self.watch_list
 
-    def create_stock_banner(self, stock: dict):
+    def create_stock_banner(self, stock):
         percent_change = float(stock["percent_change"])
 
         # determine text color depending on percent_change value
@@ -139,12 +150,11 @@ class PSE_Ticker:
         volume = '{:,}'.format(int(stock['volume']))
 
         points_change = '{:+.2f}'.format(percent_change / 100)
-        percent_change = "{}({}%)".format(
-            normal_color_code, percent_change)
+        percent_change = "{}({}%)".format(normal_color_code, percent_change)
 
         # slice the time from date/time stamp and convert to datetime type
-        as_of_date_format = dt.datetime.strptime(
-            self.as_of[11:16], "%H:%M")
+        as_of_date_format = dt.datetime.strptime(self.as_of[11:16], "%H:%M")
+
         # create as desired string time format
         as_of = f"a/o {dt.datetime.strftime(as_of_date_format, '%I:%M %p')}"
 
@@ -157,25 +167,34 @@ class PSE_Ticker:
 
     def run_ticker(self):
         tick_count = 0
-        # initialize text coloring
-        init(autoreset=True)
+        ticker_stock_list = self.stocks_list
 
         # clear the console screen
         os.system("cls")
+        # initialize text coloring
+        init(autoreset=True)
         print("\n")
+
+        if self.is_watchlist or self.is_quick_watch:
+            # replace ticker_stock_list using symbols on watch_list
+            ticker_stock_list = [
+                stock for stock in self.stocks_list if stock["symbol"].strip().upper() in self.watch_list]
+
         while True:
-            if self.is_watchlist:
+            if self.is_quick_watch:
+                print("*** QUICK WATCH ***".center(SPACE_ALIGNMENT, " "), "\n")
+            elif self.is_watchlist:
                 print("*** WATCHLIST MODE ***".center(SPACE_ALIGNMENT, " "), "\n")
 
             # loop through the list of stocks to present
-            for stock in self.stocks_list:
+            for stock in ticker_stock_list:
                 self.create_stock_banner(stock)
 
                 time.sleep(1)
                 tick_count += 1
 
                 if tick_count >= TIME_TO_CHECK_NEW_DATA:
-                    # fetch new data from api
+                    # attempt to fetch new data from api
                     self.fetch_stocks_json()
                     tick_count = 0
 
