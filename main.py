@@ -3,7 +3,10 @@ from PSETicker import *
 
 def main():
     try:
+        print(f"\n**Fetching stock updates from {URL}")
         pse_ticker.fetch_stocks_json()
+        print("\nDone!\n")
+
         pse_ticker.run_ticker()
 
     except KeyboardInterrupt:
@@ -24,7 +27,7 @@ def main():
         elif option.strip() == "2":
             pse_ticker.is_watchlist = False
 
-        main()
+    main()
 
 
 if __name__ == "__main__":
