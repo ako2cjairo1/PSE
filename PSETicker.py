@@ -23,6 +23,7 @@ class PSE_Ticker:
         self.watch_list = []
         self.is_watchlist = False
         self.is_quick_watch = False
+        self.is_sentry_mode = False
 
     def get_as_of_date(self):
         return self.as_of[:10] if self.as_of else None
@@ -169,6 +170,11 @@ class PSE_Ticker:
         tick_count = 0
         ticker_stock_list = self.stocks_list
 
+        if len(ticker_stock_list) < 1:
+            # return immediately if no list of stocks to show
+            print("\n**No list of stock codes to show\n")
+            return
+
         # clear the console screen
         os.system("cls")
         # initialize text coloring
@@ -207,3 +213,30 @@ class PSE_Ticker:
 
         except Exception:
             print("\n**Update failed, we'll try again after a moment.\n")
+
+    def sentry_mode(self):
+        response = None
+        response_as_of = None
+        self.is_sentry_mode = True
+
+        while self.is_sentry_mode:
+            print("\n*** SENTRY MODE ***")
+            print("waiting for the API to go on-line...\n")
+
+            try:
+                # get json data from api
+                response = requests.get(f"{URL}stocks.json")
+                if response:
+                    # save the time stamp of json data we got from get request
+                    response_as_of = json.loads(response.text)["as_of"]
+
+            except Exception:
+                print("\n**Update failed, we'll try again after a moment.\n")
+
+            # if we got date/time stamp it means we have a new data from API,
+            if response_as_of:
+                # turn off Sentry mode
+                self.is_sentry_mode = False
+                return
+
+            time.sleep(5)
