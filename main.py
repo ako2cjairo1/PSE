@@ -1,4 +1,5 @@
 import time
+from PSENews import PSE_News
 from PSETicker import PSE_Ticker
 
 
@@ -8,6 +9,7 @@ def user_menu():
     print(" a - All Stocks")
     print(" w - Add/Update Watchlist")
     print(" q - Quick Watch")
+    print(" n - PH Business News")
     print(" c - Create archive")
     print(" s - Sentry Mode\n")
     print(" ** Any Key to Cancel and Continue **\n")
@@ -37,6 +39,12 @@ def user_menu():
     elif option == "s":
         pse_ticker.sentry_mode()
         main()
+    elif option == "n":
+        try:
+            pse_news.show_news_banner()
+        except KeyboardInterrupt:
+            user_menu()
+            main()
 
 
 def main():
@@ -44,7 +52,7 @@ def main():
 
     try:
         while True:
-            print(f"\n**Fetching stock updates from {url}")
+            print(f"\n**Fetching stock updates from {pse_ticker.URL}")
             if len(pse_ticker.fetch_stocks_json()) <= 0:
                 user_menu()
 
@@ -56,8 +64,12 @@ def main():
 
 
 if __name__ == "__main__":
-    # initialize PSETicker class
+    # init PSETicker class
     pse_ticker = PSE_Ticker()
-    main()
 
+    # init PSE_News class
+    pse_news = PSE_News()
+
+    # proceed to user options
+    main()
     # pse_ticker.check_api_conn()

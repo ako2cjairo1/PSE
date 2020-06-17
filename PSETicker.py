@@ -9,7 +9,6 @@ try:
 except Exception:
     print("Some importing libraries are not found.")
 
-URL = "https://phisix-api3.appspot.com/"
 SPACE_ALIGNMENT = 20
 TIME_TO_CHECK_NEW_DATA = 10
 JSON_FILENAME = "stocks.json"
@@ -18,19 +17,30 @@ ARCHIVE_FOLDER = "JSON Archive"
 
 class PSE_Ticker:
     def __init__(self):
+        self.URL = "https://phisix-api3.appspot.com/"
         self.stocks_list = []
+        self.ticker_stocks_list = []
         self.as_of = ""
         self.watch_list = []
         self.is_watchlist = False
         self.is_quick_watch = False
         self.is_sentry_mode = False
 
-    def get_as_of_date(self):
-        return self.as_of[:10] if self.as_of else None
+    def get_as_of(self, date_time):
+        date_time = date_time.strip().lower()
+        if date_time == "date":
+            return self.as_of[:10] if self.as_of else None
+
+        elif date_time == "time":
+            # slice the time from date/time stamp and convert to datetime type
+            as_of_date_format = dt.datetime.strptime(
+                self.as_of[11:16], "%H:%M")
+            # create as desired string time format
+            return dt.datetime.strftime(as_of_date_format, '%I:%M %p')
 
     def create_archive(self, forced: bool = False):
         destination_file_path = None
-        json_date = self.get_as_of_date()
+        json_date = self.get_as_of("date")
 
         try:
             archive_folder = "{}\\{}".format(os.getcwd(), ARCHIVE_FOLDER)
@@ -66,7 +76,7 @@ class PSE_Ticker:
 
         try:
             # get json data from api
-            response = requests.get(f"{URL}stocks.json")
+            response = requests.get(f"{self.URL}stocks.json")
             if response:
                 # save the time stamp of json data we got from get request
                 response_as_of = json.loads(response.text)["as_of"]
@@ -91,6 +101,14 @@ class PSE_Ticker:
                 with open(JSON_FILENAME, "r") as file_read:
                     data = json.load(file_read)
                     self.stocks_list = [stock for stock in data["stock"]]
+
+        if self.is_watchlist or self.is_quick_watch:
+            # replace ticker_stock_list using symbols on watch_list
+            self.ticker_stocks_list = [
+                stock for stock in self.stocks_list if stock["symbol"].strip().upper() in self.watch_list]
+        else:
+            # set the ticker list to all stocks list
+            self.ticker_stocks_list = self.stocks_list
 
         if len(self.stocks_list) < 1:
             print("\n**No list of stock codes to show\n")
@@ -145,32 +163,30 @@ class PSE_Ticker:
             "\033[22;30;42m" if percent_change > 0 else "\033[22;30;43m")
         color_reset = "\033[0;39;49m"
 
-        code = stock['symbol'].strip().upper()
-        stock_price = stock['price']['amount']
+        code = stock["symbol"].strip().upper()
+        stock_price = stock["price"]["amount"]
         price = f"{price_color_code} {'{:,.2f}'.format(stock_price)} {color_reset}"
-        volume = '{:,}'.format(int(stock['volume']))
+        volume = "{:,}".format(int(stock["volume"]))
 
-        points_change = '{:+.2f}'.format(percent_change / 100)
-        percent_change = "{}({}%)".format(normal_color_code, percent_change)
-
-        # slice the time from date/time stamp and convert to datetime type
-        as_of_date_format = dt.datetime.strptime(self.as_of[11:16], "%H:%M")
+        points_change = "{:+.2f}".format(stock_price * (percent_change / 100))
+        percent_change = "{}({:+.2f}%)".format(normal_color_code,
+                                               percent_change)
 
         # create as desired string time format
-        as_of = f"a/o {dt.datetime.strftime(as_of_date_format, '%I:%M %p')}"
+        as_of = f"a/o {self.get_as_of('time')}"
 
-        print(code.center(SPACE_ALIGNMENT, ' '))
+        print(code.center(SPACE_ALIGNMENT, " "))
         print(" " * ((SPACE_ALIGNMENT - (len(price) - 21)) // 2) + price)
         print("{} {}".format(percent_change, points_change).center(
-            SPACE_ALIGNMENT + 10, ' '))
-        print(volume.center(SPACE_ALIGNMENT, ' '))
-        print(as_of.center(SPACE_ALIGNMENT, ' '), "\n")
+            SPACE_ALIGNMENT + 10, " "))
+        print(volume.center(SPACE_ALIGNMENT, " "))
+        print("{}".format(stock["name"]).center(SPACE_ALIGNMENT, " "), "\n")
+        # print(as_of.center(SPACE_ALIGNMENT, ' '), "\n")
 
     def run_ticker(self):
         tick_count = 0
-        ticker_stock_list = self.stocks_list
 
-        if len(ticker_stock_list) < 1:
+        if len(self.ticker_stocks_list) < 1:
             # return immediately if no list of stocks to show
             print("\n**No list of stock codes to show\n")
             return
@@ -181,11 +197,6 @@ class PSE_Ticker:
         init(autoreset=True)
         print("\n")
 
-        if self.is_watchlist or self.is_quick_watch:
-            # replace ticker_stock_list using symbols on watch_list
-            ticker_stock_list = [
-                stock for stock in self.stocks_list if stock["symbol"].strip().upper() in self.watch_list]
-
         while True:
             if self.is_quick_watch:
                 print("*** QUICK WATCH ***".center(SPACE_ALIGNMENT, " "), "\n")
@@ -193,7 +204,7 @@ class PSE_Ticker:
                 print("*** WATCHLIST MODE ***".center(SPACE_ALIGNMENT, " "), "\n")
 
             # loop through the list of stocks to present
-            for stock in ticker_stock_list:
+            for stock in self.ticker_stocks_list:
                 self.create_stock_banner(stock)
 
                 time.sleep(1)
@@ -203,11 +214,12 @@ class PSE_Ticker:
                     # attempt to fetch new data from api
                     self.fetch_stocks_json()
                     tick_count = 0
+                    print("\n*** as of {} ***\n".format(self.get_as_of("time")))
 
     def check_api_conn(self):
         try:
             # get json data from api
-            response = requests.get(f"{URL}stocks.json")
+            response = requests.get(f"{self.URL}stocks.json")
             print(response.status_code)
             print(response.reason)
 
@@ -225,7 +237,7 @@ class PSE_Ticker:
 
             try:
                 # get json data from api
-                response = requests.get(f"{URL}stocks.json")
+                response = requests.get(f"{self.URL}stocks.json")
                 if response:
                     # save the time stamp of json data we got from get request
                     response_as_of = json.loads(response.text)["as_of"]
