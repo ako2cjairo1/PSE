@@ -14,23 +14,51 @@ class PSE_News:
         self.pse_news = []
         self.fetch_news()
 
+    def parse_news_websites(self):
+        news_list = []
+        try:
+            stock_response = requests.get(
+                "https://www.feedspot.com/news/philippines_stock_market")
+            # remove and replace unecessary tags, chars, etc. here
+            stock_preview = stock_response.text.replace(
+                "title=\"<h4>", "story-preview=\"<h4>")
+            stock_soup = BeautifulSoup(stock_preview, "html.parser")
+
+            # find the "most recent" section div tag
+            stock_most_recent_div = stock_soup.find_all(
+                "div", {"class": "col-xs-12 col-md-4"})
+            stock_headlines_anchors = []
+
+            if len(stock_most_recent_div) > 0:
+                # find all headlines in "most recent" section
+                stock_headlines_anchors = stock_most_recent_div[0].find_all(
+                    "a", {"class": "one-line-ellipsis col-md-10 col-sm-10 col-xs-10"})
+                news_list.extend(stock_headlines_anchors)
+
+            biz_response = requests.get(
+                "https://www.feedspot.com/news/philippines_business")
+            # remove and replace unecessary tags, chars, etc. here
+            biz_preview = biz_response.text.replace(
+                "title=\"<h4>", "story-preview=\"<h4>")
+            biz_soup = BeautifulSoup(biz_preview, "html.parser")
+
+            # find the "most recent" section div tag
+            biz_most_recent_div = biz_soup.find_all(
+                "div", {"class": "col-xs-12 col-md-4"})
+
+            if len(biz_most_recent_div) > 0:
+                # find all headlines in "most recent" section
+                biz_headlines_anchors = biz_most_recent_div[0].find_all(
+                    "a", {"class": "one-line-ellipsis col-md-10 col-sm-10 col-xs-10"})
+                news_list.extend(biz_headlines_anchors)
+
+            return news_list
+
+        except Exception as ex:
+            print(ex)
+
     def fetch_news(self):
-        response = requests.get(
-            "https://www.feedspot.com/news/philippines_stock_market")
-
-        # remove and replace unecessary tags, chars, etc. here
-        res = response.text.replace(
-            "title=\"<h4>", "story-preview=\"<h4>")
-
-        soup = BeautifulSoup(res, "html.parser")
-
-        # find the "most recent" section div tag
-        most_recent_soup = soup.find_all(
-            "div", {"class": "col-xs-12 col-md-4"})[0]
-
-        # find all headlines in "most recent" section
-        headlines_soup = most_recent_soup.find_all(
-            "a", {"class": "one-line-ellipsis col-md-10 col-sm-10 col-xs-10"})
+        headlines_soup = self.parse_news_websites()
 
         # loop through each headlines to build json format dictionary
         headlines = []
