@@ -54,7 +54,8 @@ def main():
         while True:
             print(f"\n**Fetching stock updates from {pse_ticker.URL}")
             if len(pse_ticker.fetch_stocks_json()) <= 0:
-                user_menu()
+                pse_ticker.sentry_mode()
+                continue
 
             pse_ticker.run_ticker()
 
