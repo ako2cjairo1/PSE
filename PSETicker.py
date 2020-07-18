@@ -3,7 +3,7 @@ try:
     import requests
     import json
     import time
-    import datetime as dt
+    from datetime import datetime as dt
     from colorama import init
     import shutil
 except Exception:
@@ -25,6 +25,7 @@ class PSE_Ticker:
         self.is_watchlist = False
         self.is_quick_watch = False
         self.is_sentry_mode = False
+        self.close_ticker = False
 
     def get_as_of(self, date_time):
         date_time = date_time.strip().lower()
@@ -33,10 +34,10 @@ class PSE_Ticker:
 
         elif date_time == "time":
             # slice the time from date/time stamp and convert to datetime type
-            as_of_date_format = dt.datetime.strptime(
+            as_of_date_format = dt.strptime(
                 self.as_of[11:16], "%H:%M")
             # create as desired string time format
-            return dt.datetime.strftime(as_of_date_format, '%I:%M %p')
+            return dt.strftime(as_of_date_format, '%I:%M %p')
 
     def create_archive(self, forced: bool = False):
         destination_file_path = None
@@ -198,6 +199,8 @@ class PSE_Ticker:
         print("\n")
 
         while True:
+            if self.close_ticker:
+                return
             if self.is_quick_watch:
                 print("*** QUICK WATCH ***".center(SPACE_ALIGNMENT, " "), "\n")
             elif self.is_watchlist:

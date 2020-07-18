@@ -1,6 +1,9 @@
 import time
+from datetime import datetime as dt
 from PSENews import PSE_News
 from PSETicker import PSE_Ticker
+from threading import Thread
+
 
 
 def user_menu():
@@ -12,9 +15,11 @@ def user_menu():
     print(" n - PH Business News")
     print(" c - Create archive")
     print(" s - Sentry Mode\n")
+    print(" x - Close\n")
     print(" ** Any Key to Cancel and Continue **\n")
 
     option = input("Your input here: ").strip().lower()
+    pse_ticker.close_ticker = False
 
     # create a watchlist of stocks
     if option == "w":
@@ -45,10 +50,32 @@ def user_menu():
         except KeyboardInterrupt:
             user_menu()
             main()
+    elif option == "x":
+        exit()
 
 
 def main():
     url = "https://phisix-api3.appspot.com/"
+
+    def run_PSE_News():
+        time_ticker = 0
+        while True:
+            t = dt.now()
+            hr = t.hour
+            mn = t.minute
+            sc = t.second
+
+            if time_ticker == 0 and (hr == 12 and mn == 55 and sc == 0):
+                pse_ticker.close_ticker = True
+                time_ticker += 1
+
+            if time_ticker >= 1:
+                time_ticker = 0
+
+            time.sleep(1)
+
+    pseNews_thread = Thread(target=run_PSE_News)
+    pseNews_thread.start()
 
     try:
         while True:
@@ -57,7 +84,10 @@ def main():
                 pse_ticker.sentry_mode()
                 continue
 
-            pse_ticker.run_ticker()
+            if pse_ticker.close_ticker:
+                pse_news.show_news_banner()
+            else:
+                pse_ticker.run_ticker()
 
     except KeyboardInterrupt:
         user_menu()
