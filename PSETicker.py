@@ -16,6 +16,7 @@ ARCHIVE_FOLDER = "JSON Archive"
 
 
 class PSE_Ticker:
+
     def __init__(self):
         self.URL = "https://phisix-api3.appspot.com/"
         self.stocks_list = []
@@ -25,7 +26,10 @@ class PSE_Ticker:
         self.is_watchlist = False
         self.is_quick_watch = False
         self.is_sentry_mode = False
+        self.hide_ticker = False
         self.close_ticker = False
+        self.status_message = "Market is Open" if dt.now().isoweekday() in range(
+            1, 6) else "Market Close"
 
     def get_as_of(self, date_time):
         date_time = date_time.strip().lower()
@@ -44,14 +48,14 @@ class PSE_Ticker:
         json_date = self.get_as_of("date")
 
         try:
-            archive_folder = "{}\\{}".format(os.getcwd(), ARCHIVE_FOLDER)
-            date_folder = "{}\\{}".format(archive_folder, json_date)
+            archive_folder = "{}/{}".format(os.getcwd(), ARCHIVE_FOLDER)
+            date_folder = "{}/{}".format(archive_folder, json_date)
 
             # format source file
-            source = "{}\\{}".format(os.getcwd(), JSON_FILENAME)
+            source = "{}/{}".format(os.getcwd(), JSON_FILENAME)
 
             # format destination file dir
-            filename = "\\{}.json".format(self.as_of[:19].replace(":", "-"))
+            filename = "/{}.json".format(self.as_of[:19].replace(":", "-"))
             dest = "{}{}".format(date_folder, filename)
 
             # check if file already exist in archive folder
@@ -193,18 +197,23 @@ class PSE_Ticker:
             return
 
         # clear the console screen
-        os.system("cls")
+        os.system("clear")
         # initialize text coloring
         init(autoreset=True)
         print("\n")
 
-        while True:
-            if self.close_ticker:
+        while not self.close_ticker:
+            if self.hide_ticker or self.is_sentry_mode:
                 return
-            if self.is_quick_watch:
-                print("*** QUICK WATCH ***".center(SPACE_ALIGNMENT, " "), "\n")
-            elif self.is_watchlist:
-                print("*** WATCHLIST MODE ***".center(SPACE_ALIGNMENT, " "), "\n")
+            print(
+                f"*** {self.status_message} ***".center(SPACE_ALIGNMENT, " "), "\n")
+            print(f"{'* WATCH LIST *' if self.is_watchlist else '* QUICK WATCH *'}".center(
+                SPACE_ALIGNMENT, " "), "\n")
+
+            # if self.is_quick_watch:
+            #     print("*** QUICK WATCH ***".center(SPACE_ALIGNMENT, " "), "\n")
+            # elif self.is_watchlist:
+            #     print("*** WATCHLIST MODE ***".center(SPACE_ALIGNMENT, " "), "\n")
 
             # loop through the list of stocks to present
             for stock in self.ticker_stocks_list:
@@ -214,6 +223,7 @@ class PSE_Ticker:
                 tick_count += 1
 
                 if tick_count >= TIME_TO_CHECK_NEW_DATA:
+                    # os.system("CMDOW @ /ren \"PSE Ticker\" /mov 1244 -25 /siz 217 700 /top")
                     # attempt to fetch new data from api
                     self.fetch_stocks_json()
                     tick_count = 0
