@@ -13,6 +13,7 @@ class PSE_News:
     def __init__(self):
         self.pse_news = []
         self.fetch_news()
+        self.banner_thread = Event()
 
     def parse_news_websites(self):
         news_list = []
@@ -97,7 +98,7 @@ class PSE_News:
         print(title)
         print("{}more on{}".format(summary, url), "\n")
 
-    def show_news_banner(self, event=Event()):
+    def show_news_banner(self):
         tick_count = 0
 
         self.fetch_news()
@@ -111,7 +112,7 @@ class PSE_News:
         init(autoreset=True)
         print("\n")
 
-        while not event.is_set():
+        while not self.banner_thread.is_set():
             # loop through the list of headlines to present
             for headline in self.pse_news:
                 self.create_news_banner(headline)
@@ -122,7 +123,7 @@ class PSE_News:
                 if tick_count >= TIME_TO_CHECK_NEWS:
                     self.show_news_banner()
 
-        event.set()
+        self.banner_thread.set()
 
-    def run_news_banner_thread(self, evt):
-        Thread(target=show_news_banner, args=(evt,), daemon=True).start()
+    def run_news_banner_thread(self):
+        Thread(target=self.show_news_banner, daemon=True).start()

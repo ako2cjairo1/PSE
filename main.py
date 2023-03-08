@@ -7,7 +7,6 @@ from PSETicker import PSE_Ticker
 from threading import Event, Thread
 
 pse_news_event = Event()
-news_banner_event = Event()
 
 
 def user_menu():
@@ -24,6 +23,7 @@ def user_menu():
 
     option = input("Your input here: ").strip().lower()
     pse_ticker.hide_ticker = False
+    pse_news_event.set()
 
     # create a watchlist of stocks
     if option == "w":
@@ -49,19 +49,16 @@ def user_menu():
         pse_ticker.sentry_mode()
         main()
     elif option == "n":
-        try:
-            pse_news.run_news_banner_thread(news_banner_event)
-        except KeyboardInterrupt:
-            user_menu()
-            main()
+        # pse_news.hide_ticker = True
+        pse_news.banner_thread = Event()
+        pse_news.show_news_banner()
+        main()
     elif option == "x":
         exit()
 
 
 def main():
     url = "https://phisix-api3.appspot.com/"
-
-    news_banner_event.set()  # close news banner
 
     def run_PSE_News():
         time_ticker = 0
@@ -74,37 +71,37 @@ def main():
             isCheck = True if (
                 time_ticker == 0 and day in range(1, 6)) else False
 
-            if isCheck and (hr <= 9 and mn <= 15 and sc == 0):
+            if isCheck and (hr <= 9 and mn <= 20 and sc == 0):
                 # Pre-open / Open Market
                 pse_ticker.is_sentry_mode = True
+                pse_ticker.hide_ticker = False
                 time_ticker += 1
                 pse_ticker.status_message = "Pre-open"
-            elif isCheck and (hr < 12 and mn == 0 and sc == 0):
+            elif isCheck and ((9 >= hr < 12) and mn <= 30 and sc == 0):
                 pse_ticker.status_message = f"Market Open"
                 time_ticker += 1
-            elif isCheck and (hr == 12 and mn == 0 and sc == 0):
+            elif isCheck and (hr == 12 and mn <= 59 and sc == 0):
                 # Market Recess
                 pse_ticker.hide_ticker = True
                 pse_ticker.status_message = "Market Recess"
                 time_ticker += 1
-            elif isCheck and (hr == 13 and mn == 30 and sc == 0):
+            elif isCheck and (hr == 13 and mn >= 30 and sc == 0):
                 # Resume Market
                 pse_ticker.hide_ticker = False
-                news_banner_event.set()  # end the news banner daemon thread
                 pse_ticker.status_message = f"Market Open"
+                pse_news.banner_thread.set()  # end the news banner daemon thread
                 time_ticker += 1
-            elif isCheck and (hr == 14 and mn == 50 and sc == 0):
+            elif isCheck and (hr == 14 and (55 >= mn >= 50) and sc == 0):
                 # Run-off Period
                 os.system("say 'Philippine Stock Exchange Run-off period.'")
                 pse_ticker.status_message = f"Market Run-off"
                 time_ticker += 1
-            elif isCheck and (hr == 15 and mn == 0 and sc == 0):
+            elif isCheck and (hr == 15 and (mn < 2) and sc == 0):
                 # Market Closed
-                os.system(
-                    "say 'Philippine Stock Exchange is now closed.'")
+                os.system("say 'Philippine Stock Exchange is now closed.'")
                 pse_ticker.status_message = f"Market Close"
                 time_ticker += 1
-            elif isCheck and (hr == 15 and mn == 30 and sc == 0):
+            elif isCheck and (hr == 15 and mn >= 10 and sc == 0):
                 os.system("say 'Closing Philippine Stock Exchange ticker.'")
                 time.sleep(3)
                 pse_news_event.set()
@@ -117,6 +114,7 @@ def main():
             time.sleep(1)
         return exit()
 
+    pse_news_event = Event()
     Thread(target=run_PSE_News, daemon=True).start()
 
     try:
@@ -127,12 +125,15 @@ def main():
             if pse_ticker.is_sentry_mode or len(stock_updates) <= 0:
                 os.system(
                     f"say 'Philippine Stock Exchange will open shortly, entering sentry mode...'")
+
                 pse_ticker.sentry_mode()
             elif pse_ticker.hide_ticker:
                 os.system(
                     "say 'Philippine Stock Exchange is on recess. Now loading business news banner...'")
-                pse_news.run_news_banner_thread(news_banner_event)
-            else:
+                pse_news.banner_thread = Event()
+                pse_news.show_news_banner()
+            elif not pse_ticker.hide_ticker:
+                pse_news.banner_thread.set()
                 os.system(
                     f"say 'Philippine Stock Exchange is online...{pse_ticker.status_message}'")
                 pse_ticker.run_ticker()

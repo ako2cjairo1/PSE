@@ -28,8 +28,8 @@ class PSE_Ticker:
         self.is_sentry_mode = False
         self.hide_ticker = False
         self.close_ticker = False
-        self.status_message = "Market is Open" if dt.now().isoweekday() in range(
-            1, 6) else "Market Close"
+        self.status_message = "Market is Open" if (9 <= dt.now().hour != 12) and (
+            dt.now().isoweekday() in range(1, 6)) else "Market Close"
 
     def get_as_of(self, date_time):
         date_time = date_time.strip().lower()
